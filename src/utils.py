@@ -150,6 +150,21 @@ def stable_seasoal_filter(time_series: Sized, freq: int):
     return pd.DataFrame([i for i in chain(*seasonals)][:length])
 
 
+def smn_seasonal_filter(time_series: Iterable, m: int, n: int) -> pd.DataFrame:
+    """
+    Реализует S(m, n) сезонный фильтр.
+
+    :param time_series: временной ряд
+    :param m: параметр m фильтра S(m, n)
+    :param n: параметр n фильтра S(m, n)
+    :return: датафрейм со значениями сезонной составляющей
+    """
+    if not isinstance(time_series, pd.DataFrame):
+        time_series = pd.DataFrame(time_series)
+
+    return time_series.rolling(window=(n + m - 1), center=True).mean().dropna()
+
+
 def get_models(models_file: str, model: Type, data: Iterable, params: List[tuple]) -> dict:
     """
     Строит модели по набору параметров. Обучение нескольких моделей - дело доолгое,
