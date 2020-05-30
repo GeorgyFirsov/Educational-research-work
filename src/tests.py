@@ -7,8 +7,12 @@ from typing import (Optional,
 import pandas as pd
 from scipy.stats import jarque_bera
 from scipy.stats import chi2
-from statsmodels.tsa.stattools import adfuller, kpss
-from statsmodels.tsa.arima_model import ARMAResults, ARMAResultsWrapper
+from statsmodels.tsa.stattools import (adfuller,
+                                       kpss
+                                       )
+from statsmodels.tsa.arima_model import (ARMAResults,
+                                         ARMAResultsWrapper
+                                         )
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
