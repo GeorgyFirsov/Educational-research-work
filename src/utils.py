@@ -322,8 +322,6 @@ def extrapolate_seasonal(X_train: pd.DataFrame, forecast_for: int) -> Iterable:
     surrounding = [period for _ in range(forecast_for // length + 2)]
     surrounding = [v for v in chain(*surrounding)]
 
-    print(surrounding)
-
     index = 0
     while last_in_train != surrounding[index]:
         index += 1
