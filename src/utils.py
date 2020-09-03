@@ -15,6 +15,8 @@ from sklearn.preprocessing import PolynomialFeatures
 
 import pickle
 
+from src.misc import deprecated
+
 
 class DecompositionType(object):
     """
@@ -118,7 +120,7 @@ def double_exponential_smoothing(series: Union[Sized, pd.DataFrame], alpha: int 
         trend = beta * (level - last_level) + (1 - beta) * trend
         result.append(level + trend)
 
-    return np.array(result)
+    return np.array(result[:-1])
 
 
 def stable_seasoal_filter(time_series: Sized, freq: int):
@@ -165,6 +167,7 @@ def smn_seasonal_filter(time_series: Iterable, m: int, n: int) -> pd.DataFrame:
     return time_series.rolling(window=(n + m - 1), center=True).mean().dropna()
 
 
+@deprecated('build_models')
 def get_models(models_file: str, model: Type, data: Iterable, params: List[tuple]) -> dict:
     """
     Строит модели по набору параметров. Обучение нескольких моделей - дело доолгое,
@@ -203,6 +206,28 @@ def get_models(models_file: str, model: Type, data: Iterable, params: List[tuple
     with open(models_file, 'wb') as serialized:
         pickle.dump(models, serialized)
         print(f'Models saved to {models_file}')
+
+    return models
+
+
+def build_models(model: Type, data: Iterable, *params, file: Optional[str] = None) -> dict:
+    """
+    Замена функции get_models
+    """
+    if file is not None and exists(file):
+        print(f'Loading models from {file}...')
+        with open(file, 'rb') as serialized:
+            models = pickle.load(serialized)
+            if set(params) == set(models.keys()):
+                print('Load success')
+                return models
+
+    print('Building new models')
+
+    models = {param: model(data, param).fit() for param in params}
+    if file is not None:
+        with open(file, 'wb') as serialized:
+            pickle.dump(models, serialized)
 
     return models
 
@@ -291,13 +316,50 @@ def extrapolate_seasonal(X_train: pd.DataFrame, forecast_for: int) -> Iterable:
     :return: экстраполированные значения сезонной составляющей
     """
     length = _detect_period(X_train)
-    period = X_train.values[:length]
+    period = [v for v in X_train.values[:length]]
     last_in_train = X_train.values[-1]
 
-    surrounding = np.vstack([period for _ in range(forecast_for // length + 2)])
+    surrounding = [period for _ in range(forecast_for // length + 2)]
+    surrounding = [v for v in chain(*surrounding)]
+
+    print(surrounding)
 
     index = 0
     while last_in_train != surrounding[index]:
         index += 1
 
     return surrounding[index + 1:][:forecast_for]
+
+
+def prepare_data(x: pd.DataFrame, *,
+                 value_col: Optional[str] = None,
+                 date_col: Optional[str] = None,
+                 date_format: Optional[str] = None) -> pd.DataFrame:
+    """
+    Приводит DataFrame в стандартный для библиотеки вид - столбец с датой
+    называется Date, столбец со значениями назыается Value
+    """
+
+    df = x.copy(deep=True)
+    df.reset_index(inplace=True)
+    df['Date'] = pd.to_datetime(df['Date' if date_col is None else date_col], format=date_format)
+    df = df.set_index('Date').drop('index', axis=1)
+    if date_col is not None:
+        df.drop(date_col, axis=1, inplace=True)
+    if value_col is not None:
+        df.rename(columns={value_col: 'Value'}, inplace=True)
+    return df
+
+
+def subtract(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """
+    Вычитает значения одного набора данных из другого
+    """
+
+    values1 = df1.values if isinstance(df1, pd.DataFrame) else df1
+    values2 = df2.values if isinstance(df2, pd.DataFrame) else df2
+
+    assert len(values1) == len(values2), f'Both datasets must have the same length, ' \
+                                         f'len(df1) == {len(values1)}, len(df2) == {len(values2)}'
+
+    return pd.DataFrame([v1 - v2 for v1, v2 in zip(values1, values2) if v2 is not None])

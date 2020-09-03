@@ -1,3 +1,4 @@
+from warnings import filterwarnings
 from typing import (Optional,
                     Iterable,
                     Union,
@@ -77,7 +78,7 @@ def ljung_box_test(
         time_series = pd.Series(time_series).dropna()
 
     # Теперь тест Льюнга-Бокса
-    test_result = acorr_ljungbox(time_series, lags=lags)
+    test_result = acorr_ljungbox(time_series, lags=lags, return_df=False)
 
     tstat = test_result[0][-1] if isinstance(lags, int) else test_result[0]
     pvalue = test_result[1][-1] if isinstance(lags, int) else test_result[1]
@@ -108,7 +109,9 @@ def kpss_test(
         time_series = pd.Series(time_series).dropna()
 
     # Теперь тест КПСС
-    test_result = kpss(time_series, lags=lags)
+    filterwarnings('ignore', category=UserWarning)
+    test_result = kpss(time_series, nlags=(lags if lags is not None else 'auto'))
+    filterwarnings('default', category=UserWarning)
 
     tstat = test_result[0]
     pvalue = test_result[1]
